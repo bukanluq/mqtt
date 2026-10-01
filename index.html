@@ -365,6 +365,58 @@
     </div>
   </section>
 
+  <!-- 5b -->
+  <section class="slide">
+    <div class="slide-inner">
+      <span class="badge">Setup 3 of 3</span>
+      <h2>Set up your own broker (HiveMQ Cloud, free)</h2>
+      <p class="lede">Skip this for the in-class activities — the public broker is enough. Do this when you're ready to build something real.</p>
+      <ol class="steps">
+        <li><b>Go to console.hivemq.cloud and sign up.</b><span class="why">Free, no credit card required for the Serverless plan.</span></li>
+        <li><b>Click "Create New Cluster" and choose the Serverless plan.</b><span class="why">Serverless is the free, always-on tier — fine for a student project or a prototype. Spins up in under a minute.</span></li>
+        <li><b>Open the cluster, go to Access Management, and create credentials.</b><span class="why">This is a username and password your ESP32-S3 will use to connect — not your HiveMQ account login.</span></li>
+        <li><b>Give those credentials Publish and Subscribe permission on your topic (e.g. <span class="pins">e21/#</span>).</b><span class="why">The <code style="font-size:13px;">#</code> wildcard covers every topic under <code style="font-size:13px;">e21/</code>, so you don't have to list each one separately.</span></li>
+        <li><b>Copy the Cluster URL and the port (8883) from the cluster's overview page.</b><span class="why">This replaces <code style="font-size:13px;">broker.hivemq.com</code> / <code style="font-size:13px;">1883</code> in your sketch.</span></li>
+      </ol>
+      <div class="result"><b>You should now have:</b> a cluster URL, port 8883, a username, and a password — four values that plug straight into the code changes on the next slide.</div>
+    </div>
+  </section>
+
+  <!-- 5c -->
+  <section class="slide code-slide">
+    <div class="slide-inner">
+      <span class="badge">Setup 3 of 3 — Code changes</span>
+      <h2>Switching your sketch to the private broker</h2>
+      <div class="code-grid">
+        <div class="code-col">
+          <div class="code-col-label">Add: secure client &amp; credentials</div>
+          <pre><code>#include &lt;WiFiClientSecure.h&gt;
+#include &lt;PubSubClient.h&gt;
+
+const char* mqttServer = "xxxxxxxx.s1.eu.hivemq.cloud";
+const int mqttPort = 8883;
+const char* mqttUser = "YourMqttUsername";
+const char* mqttPass = "YourMqttPassword";
+
+WiFiClientSecure espClient;
+PubSubClient client(espClient);</code></pre>
+        </div>
+        <div class="code-col">
+          <div class="code-col-label">Change: setup() &amp; connect() calls</div>
+          <pre><code>void setup() {
+  // ...same Wi-Fi connection as before...
+  espClient.setInsecure(); // skips certificate validation — OK for class projects
+  client.setServer(mqttServer, mqttPort);
+}
+
+// in reconnect():
+client.connect(clientId, mqttUser, mqttPass)</code></pre>
+        </div>
+      </div>
+      <div class="note" style="margin-top:14px;"><b>What changed:</b> <code style="font-size:13px;">WiFiClientSecure</code> replaces <code style="font-size:13px;">WiFiClient</code> — it speaks TLS, which port 8883 requires. <code style="font-size:13px;">client.connect()</code> now takes a username and password as extra arguments. <code style="font-size:13px;">setInsecure()</code> is a shortcut that skips verifying the broker's certificate — fine for learning, but a production device should instead load the broker's real root certificate.</div>
+    </div>
+  </section>
+
   <!-- 6 -->
   <section class="slide">
     <div class="slide-inner">
