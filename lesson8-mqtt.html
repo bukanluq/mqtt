@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lesson 8 — MQTT: Publish & Subscribe</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10161d;
+    --bg-elev:#171f28;
+    --bg-code:#0b0f14;
+    --line:#26313c;
+    --text:#e7ecf1;
+    --text-dim:#8b98a5;
+    --accent:#ffb454;
+    --accent-2:#57c7b8;
+    --accent-warn:#ff8a80;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);}
+  body{
+    font-family:var(--sans);
+    color:var(--text);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .deck{
+    position:relative;
+    flex:1;
+    overflow:hidden;
+  }
+  .slide{
+    position:absolute;
+    inset:0;
+    display:none;
+    flex-direction:column;
+    padding:clamp(14px,2.4vw,36px) clamp(24px,6vw,96px);
+    overflow:hidden;
+  }
+  .slide.active{display:flex;}
+  .slide-inner{max-width:920px; width:100%; margin:0 auto; flex:1; display:flex; flex-direction:column; justify-content:center; min-height:0;}
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:13px;
+    letter-spacing:.02em;
+    color:var(--accent-2);
+    margin:0 0 14px 0;
+  }
+  h1{
+    font-size:clamp(30px,4.4vw,52px);
+    line-height:1.08;
+    margin:0 0 18px 0;
+    font-weight:800;
+    letter-spacing:-0.01em;
+  }
+  h2{
+    font-size:clamp(20px,2.8vw,32px);
+    line-height:1.12;
+    margin:0 0 10px 0;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  p.lede{
+    font-size:clamp(14px,1.5vw,17px);
+    line-height:1.5;
+    color:var(--text-dim);
+    max-width:70ch;
+    margin:0 0 12px 0;
+  }
+  .grid{
+    display:grid;
+    gap:16px;
+  }
+  .grid.cols-2{grid-template-columns:1fr 1fr;}
+  .grid.cols-3{grid-template-columns:repeat(3,1fr);}
+  @media (max-width:760px){ .grid.cols-2, .grid.cols-3{grid-template-columns:1fr;} }
+  .card{
+    background:var(--bg-elev);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px 20px;
+  }
+  .card h3{
+    margin:0 0 8px 0;
+    font-size:15px;
+    font-weight:700;
+    color:var(--accent);
+  }
+  .card p{margin:0; font-size:14.5px; line-height:1.55; color:var(--text-dim);}
+  .term{
+    border-left:3px solid var(--accent-2);
+    padding:4px 0 4px 16px;
+    margin:0 0 16px 0;
+  }
+  .term b{color:var(--text); font-size:16.5px;}
+  .term span{display:block; color:var(--text-dim); font-size:14.5px; margin-top:3px; line-height:1.5;}
+  ul.points{margin:0 0 20px 0; padding:0; list-style:none;}
+  ul.points li{
+    position:relative;
+    padding-left:22px;
+    margin-bottom:10px;
+    font-size:15.5px;
+    line-height:1.55;
+    color:var(--text);
+  }
+  ul.points li::before{
+    content:"";
+    position:absolute;
+    left:0; top:8px;
+    width:7px; height:7px;
+    background:var(--accent);
+    border-radius:1.5px;
+  }
+  .steps{counter-reset:step; margin:0 0 10px 0; padding:0; list-style:none;}
+  .steps li{
+    counter-increment:step;
+    position:relative;
+    padding-left:40px;
+    margin-bottom:14px;
+    font-size:15.5px;
+    line-height:1.55;
+  }
+  .steps li::before{
+    content:counter(step);
+    position:absolute; left:0; top:0;
+    width:26px; height:26px;
+    border:1px solid var(--accent);
+    color:var(--accent);
+    border-radius:50%;
+    font-family:var(--mono);
+    font-size:13px;
+    font-weight:600;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .steps li b{color:var(--text);}
+  .steps li span.why{display:block; color:var(--text-dim); margin-top:2px;}
+  pre{
+    background:var(--bg-code);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 16px;
+    overflow-x:auto;
+    overflow-y:visible;
+    margin:0 0 14px 0;
+  }
+  code{
+    font-family:var(--mono);
+    font-size:clamp(9.5px,1.15vw,12.5px);
+    line-height:1.42;
+    color:#d3dce3;
+    white-space:pre;
+  }
+  .code-slide .slide-inner{justify-content:flex-start;}
+  .code-slide h2{margin-bottom:8px;}
+  .code-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+    flex:1;
+    min-height:0;
+  }
+  .code-col{display:flex; flex-direction:column; min-height:0;}
+  .code-col-label{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--text-dim);
+    margin-bottom:6px;
+    letter-spacing:.02em;
+  }
+  .code-col pre{
+    flex:1;
+    min-height:0;
+    margin:0;
+    background:var(--bg-code);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    overflow-x:auto;
+    display:flex;
+    align-items:stretch;
+  }
+  .code-col code{
+    width:100%;
+    font-family:var(--mono);
+    color:#d3dce3;
+    white-space:pre;
+    font-size:clamp(10px,min(2.9vh,1.35vw),16px);
+    line-height:1.5;
+  }
+  .badge{
+    display:inline-block;
+    font-family:var(--mono);
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:20px;
+    border:1px solid var(--accent);
+    color:var(--accent);
+    margin-bottom:6px;
+  }
+  .result, .note, .todo{
+    border-radius:10px;
+    padding:9px 14px;
+    margin:0 0 8px 0;
+    font-size:13px;
+    line-height:1.45;
+  }
+  .result{background:rgba(87,199,184,0.08); border:1px solid rgba(87,199,184,0.35);}
+  .result b{color:var(--accent-2);}
+  .todo{background:rgba(255,180,84,0.08); border:1px solid rgba(255,180,84,0.35);}
+  .todo b{color:var(--accent);}
+  .note{background:rgba(255,255,255,0.03); border:1px dashed var(--line); color:var(--text-dim);}
+  .note b{color:var(--text);}
+  table{width:100%; border-collapse:collapse; margin:0 0 18px 0; font-size:14.5px;}
+  th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--line);}
+  th{font-family:var(--mono); font-size:12px; color:var(--text-dim); font-weight:500; letter-spacing:.02em;}
+  td{color:var(--text);}
+  .two-col{display:grid; grid-template-columns:1.1fr .9fr; gap:32px; align-items:start;}
+  @media (max-width:800px){ .two-col{grid-template-columns:1fr;} }
+  .pins{font-family:var(--mono); color:var(--accent-2);}
+  .diagram{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    flex-wrap:wrap;
+    margin:8px 0 22px 0;
+  }
+  .node{
+    background:var(--bg-elev);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px 18px;
+    text-align:center;
+    min-width:120px;
+  }
+  .node b{display:block; font-size:14px; margin-bottom:2px;}
+  .node span{font-size:12px; color:var(--text-dim);}
+  .arrow{color:var(--text-dim); font-family:var(--mono); font-size:20px;}
+  .wire-svg{width:100%; max-width:640px; margin:6px auto 20px auto; display:block;}
+  .title-slide .slide-inner{justify-content:center; align-items:flex-start;}
+  .title-slide h1{font-size:clamp(38px,6vw,68px);}
+  .kicker{font-family:var(--mono); color:var(--accent); font-size:14px; margin-bottom:22px;}
+  .footer-bar{
+    border-top:1px solid var(--line);
+    background:var(--bg-elev);
+    padding:10px clamp(20px,5vw,64px);
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+  }
+  .progress{display:flex; gap:5px; flex:1; max-width:420px;}
+  .tick{height:4px; flex:1; background:var(--line); border-radius:2px; transition:background .2s;}
+  .tick.done{background:var(--accent-2);}
+  .tick.current{background:var(--accent);}
+  .nav-controls{display:flex; align-items:center; gap:14px;}
+  .counter{font-family:var(--mono); font-size:13px; color:var(--text-dim); min-width:52px; text-align:center;}
+  button.nav-btn{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--text);
+    width:36px; height:36px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:16px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  button.nav-btn:hover{border-color:var(--accent); color:var(--accent);}
+  button.nav-btn:disabled{opacity:.3; cursor:default;}
+  button.nav-btn:disabled:hover{border-color:var(--line); color:var(--text);}
+  .slide-label{font-family:var(--mono); font-size:12px; color:var(--text-dim);}
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px;}
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- 0 -->
+  <section class="slide active title-slide">
+    <div class="slide-inner">
+      <div class="kicker">ESP32-S3 · LESSON 8</div>
+      <h1>MQTT: Publish &amp; Subscribe</h1>
+      <p class="lede">You've had the ESP32-S3 talk to Blynk's dashboard. Today you learn the protocol running underneath most real IoT products — MQTT — and use it directly, with no dashboard service in between.</p>
+      <div class="note"><b>Before this lesson:</b> students should be comfortable with Wi-Fi connection code, <code style="font-size:13px;">pinMode()</code> / <code style="font-size:13px;">digitalWrite()</code> / <code style="font-size:13px;">analogRead()</code>, and reading Serial Monitor output.</div>
+    </div>
+  </section>
+
+  <!-- 1 -->
+  <section class="slide">
+    <div class="slide-inner">
+      <div class="eyebrow">Part 1 · Concepts</div>
+      <h2>What is MQTT, actually?</h2>
+      <p class="lede">MQTT is a lightweight messaging protocol built for devices with weak connections and small processors — exactly what an ESP32-S3 is. Instead of devices calling each other directly, everyone talks through one central server.</p>
+      <ul class="points">
+        <li>A device <b>publishes</b> a message to a named <b>topic</b> — it doesn't need to know who (if anyone) is listening.</li>
+        <li>Other devices <b>subscribe</b> to that topic and get the message the moment it arrives.</li>
+        <li>The server in the middle — the <b>broker</b> — is the only thing every device needs to know how to reach.</li>
+      </ul>
+      <div class="note"><b>Why it matters:</b> this is the same pattern running under most commercial smart-home and industrial IoT products. Learn it once here, and it transfers directly — Blynk itself is built on MQTT-like ideas under the hood.</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide">
+    <div class="slide-inner">
+      <div class="eyebrow">Part 1 · Concepts</div>
+      <h2>How the pieces talk to each other</h2>
+      <p class="lede">Nothing connects directly to anything else. Every device — publisher or subscriber — only ever talks to the broker.</p>
+      <div class="diagram">
+        <div class="node"><b>ESP32-S3</b><span>publishes sensor data</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><b>MQTT Broker</b><span>the middleman</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><b>Any subscriber</b><span>phone, laptop, another ESP32</span></div>
+      </div>
+      <ul class="points">
+        <li>A device opens one connection to the broker and keeps it open — that's what <code style="font-size:13px;">client.loop()</code> maintains.</li>
+        <li>Publishing sends a message to a topic; the broker instantly forwards it to every current subscriber of that topic.</li>
+        <li>The same device can publish to one topic and subscribe to another at the same time, over that one connection.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide">
+    <div class="slide-inner">
+      <div class="eyebrow">Part 1 · Concepts</div>
+      <h2>Five words you'll keep hearing</h2>
+      <div class="term"><b>Broker</b><span>The server every device connects to. It has no idea what your data means — it just routes messages from publishers to subscribers by topic.</span></div>
+      <div class="term"><b>Topic</b><span>A message's address, written like a file path — e.g. <code style="font-size:13px;">e21/lesson8/sensor</code>. Publishers and subscribers just need to agree on the exact string.</span></div>
+      <div class="term"><b>Payload</b><span>The actual message content, sent as plain text or bytes — a number, a word like "ON", or a small JSON string.</span></div>
+      <div class="term"><b>Client ID</b><span>A name your device gives itself when connecting. Two devices connecting with the same Client ID will keep kicking each other off — always make it unique.</span></div>
+      <div class="term"><b>QoS &amp; Retained</b><span>Two optional delivery settings. This lesson uses the simple defaults (QoS 0, not retained) — good enough for almost everything you'll build early on.</span></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide">
+    <div class="slide-inner">
+      <span class="badge">Setup 1 of 3</span>
+      <h2>Install the MQTT library</h2>
+      <ol class="steps">
+        <li><b>Sketch → Include Library → Manage Libraries.</b></li>
+        <li><b>Search "PubSubClient" and install the one by Nick O'Leary.</b><span class="why">This is the standard, widely-used MQTT client library for Arduino/ESP32 — small, stable, and what almost every ESP32 MQTT tutorial and real product firmware is built on.</span></li>
+        <li><b>No separate Wi-Fi library needed.</b><span class="why">The ESP32-S3's built-in <code style="font-size:13px;">WiFi.h</code> is already available once the "esp32" board package is installed — PubSubClient just rides on top of it.</span></li>
+      </ol>
+      <div class="todo"><b>Do this now:</b> get PubSubClient installed before moving on — every code slide from here on needs it.</div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
+    <div class="slide-inner">
+      <span class="badge">Setup 2 of 3</span>
+      <h2>Pick a broker</h2>
+      <p class="lede">A broker is just a server address and a port. For learning, use a free public broker — no account needed.</p>
+      <table>
+        <tr><th>Purpose</th><th>Broker address</th><th>Port</th></tr>
+        <tr><td>Learning / this lesson</td><td class="pins">broker.hivemq.com</td><td>1883</td></tr>
+        <tr><td>Learning (alternative)</td><td class="pins">test.mosquitto.org</td><td>1883</td></tr>
+        <tr><td>Real projects, later</td><td class="pins">your own HiveMQ Cloud / Mosquitto instance</td><td>8883 (TLS)</td></tr>
+      </table>
+      <div class="note"><b>Important:</b> public test brokers are shared by the entire internet, unencrypted, and have zero privacy — anyone can read any topic. Fine for this lesson; never send anything real or sensitive to one. Real projects move to a private, password-protected broker over port 8883 — same code, different server and credentials.</div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide">
+    <div class="slide-inner">
+      <div class="eyebrow">Part 2 · Arduino IDE Setup</div>
+      <h2>Board &amp; wiring — ESP32-S3</h2>
+      <div class="grid cols-2">
+        <div class="card">
+          <h3>Board selection</h3>
+          <p>Tools → Board → "ESP32S3 Dev Module" (not the plain "ESP32 Dev Module"). Everything else — Wi-Fi, MQTT, the Arduino API — behaves identically to a classic ESP32; only the board entry changes.</p>
+        </div>
+        <div class="card">
+          <h3>USB &amp; upload mode</h3>
+          <p>If uploading fails, check Tools → USB CDC On Boot is enabled, and hold BOOT while tapping RESET to force the board into upload mode.</p>
+        </div>
+      </div>
+      <p class="lede" style="margin-top:6px;">Same two components as before — an LED to control, a sensor to read — on pins that are safe defaults on ESP32-S3 dev boards.</p>
+      <div class="grid cols-2">
+        <div class="card">
+          <h3>LED — output, pin 4</h3>
+          <p>LED anode through a 220Ω resistor to GPIO4. LED cathode to GND.</p>
+        </div>
+        <div class="card">
+          <h3>Sensor — input, pin 5</h3>
+          <p>LDR (or potentiometer wiper) forms a voltage divider into GPIO5. GPIO5 is a valid ADC1 input on the ESP32-S3 — a good fit for <code style="font-size:13px;">analogRead()</code>.</p>
+        </div>
+      </div>
+      <div class="note">No sensor on hand? A potentiometer wired the same way works identically — turning it stands in for changing light.</div>
+    </div>
+  </section>
+
+  <!-- 7 : ACTIVITY 1 CODE -->
+  <section class="slide code-slide">
+    <div class="slide-inner">
+      <span class="badge">Activity 1 of 3 — Code</span>
+      <h2>Connect &amp; publish sensor data</h2>
+      <div class="code-grid">
+        <div class="code-col">
+          <div class="code-col-label">Credentials, pins &amp; client</div>
+          <pre><code>#include &lt;WiFi.h&gt;
+#include &lt;PubSubClient.h&gt;
+
+const char* ssid = "YourWiFiName";
+const char* password = "YourWiFiPassword";
+
+const char* mqttServer = "broker.hivemq.com";
+const int mqttPort = 1883;
+const char* clientId = "esp32s3-client-01";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+const int sensorPin = 5;
+
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("Connecting to MQTT...");
+    if (client.connect(clientId)) {
+      Serial.println("connected");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" retrying in 2s");
+      delay(2000);
+    }
+  }
+}</code></pre>
+        </div>
+        <div class="code-col">
+          <div class="code-col-label">setup() and loop()</div>
+          <pre><code>void setup() {
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected");
+  client.setServer(mqttServer, mqttPort);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  int sensorValue = analogRead(sensorPin);
+  char payload[8];
+  itoa(sensorValue, payload, 10);
+  client.publish("e21/lesson8/sensor", payload);
+
+  Serial.print("Published: ");
+  Serial.println(payload);
+
+  delay(2000);
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7b : ACTIVITY 1 DETAIL -->
+  <section class="slide">
+    <div class="slide-inner">
+      <span class="badge">Activity 1 of 3</span>
+      <h2>Connect &amp; publish sensor data</h2>
+      <p class="lede">Connect to Wi-Fi, connect to the broker, then push a sensor reading to a topic every 2 seconds — this is the "device reports in" half of MQTT.</p>
+      <div class="note"><b>What's new:</b> <code style="font-size:13px;">client.connect(clientId)</code> opens the MQTT connection using your unique Client ID. <code style="font-size:13px;">client.publish(topic, payload)</code> sends a message — the payload must be a C-string, hence <code style="font-size:13px;">itoa()</code> to convert the number. <code style="font-size:13px;">client.loop()</code> must run every pass of <code style="font-size:13px;">loop()</code> to keep the connection alive.</div>
+      <div class="note"><b>Why a <code style="font-size:13px;">reconnect()</code> function:</b> Wi-Fi and MQTT connections drop sometimes — routers reboot, signal dips. This is the standard real-world pattern: check <code style="font-size:13px;">client.connected()</code> every loop, and reconnect automatically if it's ever false.</div>
+      <div class="result"><b>Expected result:</b> the Serial Monitor prints "Published: …" every 2 seconds. To see it arrive, open <a href="http://www.hivemq.com/demos/websocket-client/" style="color:var(--accent-2);">HiveMQ's free web MQTT client</a>, connect to <span class="pins">broker.hivemq.com</span>, and subscribe to <span class="pins">e21/lesson8/sensor</span>.</div>
+      <div class="todo"><b>Students:</b> change the clientId to include your own name or student ID — if two people use the same one on the same broker, you'll keep disconnecting each other.</div>
+    </div>
+  </section>
+
+  <!-- 8 : ACTIVITY 2 CODE -->
+  <section class="slide code-slide">
+    <div class="slide-inner">
+      <span class="badge">Activity 2 of 3 — Code</span>
+      <h2>Subscribe &amp; control the LED</h2>
+      <div class="code-grid">
+        <div class="code-col">
+          <div class="code-col-label">Credentials, pins &amp; callback</div>
+          <pre><code>#include &lt;WiFi.h&gt;
+#include &lt;PubSubClient.h&gt;
+
+const char* ssid = "YourWiFiName";
+const char* password = "YourWiFiPassword";
+
+const char* mqttServer = "broker.hivemq.com";
+const int mqttPort = 1883;
+const char* clientId = "esp32s3-client-02";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+const int ledPin = 4;
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message;
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  Serial.print("Message: ");
+  Serial.println(message);
+
+  if (message == "ON") {
+    digitalWrite(ledPin, HIGH);
+  } else if (message == "OFF") {
+    digitalWrite(ledPin, LOW);
+  }
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    if (client.connect(clientId)) {
+      client.subscribe("e21/lesson8/led");
+    } else {
+      delay(2000);
+    }
+  }
+}</code></pre>
+        </div>
+        <div class="code-col">
+          <div class="code-col-label">setup() and loop()</div>
+          <pre><code>void setup() {
+  Serial.begin(115200);
+  pinMode(ledPin, OUTPUT);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+
+  client.setServer(mqttServer, mqttPort);
+  client.setCallback(callback);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8b : ACTIVITY 2 DETAIL -->
+  <section class="slide">
+    <div class="slide-inner">
+      <span class="badge">Activity 2 of 3</span>
+      <h2>Subscribe &amp; control the LED</h2>
+      <p class="lede">A different sketch, on purpose: now the ESP32-S3 listens instead of talks. Anyone who publishes "ON" or "OFF" to the right topic switches your LED.</p>
+      <div class="note"><b>What's new:</b> <code style="font-size:13px;">client.setCallback(callback)</code> registers the function Blynk-style calls run automatically when a subscribed message arrives. <code style="font-size:13px;">callback()</code> receives the topic and the raw bytes — rebuilding them into a <code style="font-size:13px;">String</code> is the easiest way to compare against "ON"/"OFF". Subscribing happens inside <code style="font-size:13px;">reconnect()</code>, right after connecting — a fresh connection has no subscriptions yet.</div>
+      <div class="result"><b>Expected result:</b> publish the text "ON" to <span class="pins">e21/lesson8/led</span> from HiveMQ's web client (same one as Activity 1) and the physical LED turns on; publish "OFF" and it turns off.</div>
+      <div class="todo"><b>Students:</b> try publishing something other than exactly "ON" or "OFF" (like "on" lowercase) and see nothing happen — good moment to talk about how MQTT payloads are just bytes with no built-in meaning; your code decides what they mean.</div>
+    </div>
+  </section>
+
+  <!-- 9 : ACTIVITY 3 CODE -->
+  <section class="slide code-slide">
+    <div class="slide-inner">
+      <span class="badge">Activity 3 of 3 — Code</span>
+      <h2>Put it together: publish + subscribe</h2>
+      <div class="code-grid">
+        <div class="code-col">
+          <div class="code-col-label">Credentials, pins &amp; functions</div>
+          <pre><code>#include &lt;WiFi.h&gt;
+#include &lt;PubSubClient.h&gt;
+
+const char* ssid = "YourWiFiName";
+const char* password = "YourWiFiPassword";
+
+const char* mqttServer = "broker.hivemq.com";
+const int mqttPort = 1883;
+const char* clientId = "esp32s3-client-03";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+const int ledPin = 4;
+const int sensorPin = 5;
+
+unsigned long lastPublish = 0;
+const unsigned long publishInterval = 2000;
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message;
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  if (message == "ON") digitalWrite(ledPin, HIGH);
+  else if (message == "OFF") digitalWrite(ledPin, LOW);
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    if (client.connect(clientId)) {
+      client.subscribe("e21/lesson8/led");
+    } else {
+      delay(2000);
+    }
+  }
+}</code></pre>
+        </div>
+        <div class="code-col">
+          <div class="code-col-label">setup() and loop()</div>
+          <pre><code>void setup() {
+  Serial.begin(115200);
+  pinMode(ledPin, OUTPUT);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+
+  client.setServer(mqttServer, mqttPort);
+  client.setCallback(callback);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  unsigned long now = millis();
+  if (now - lastPublish > publishInterval) {
+    lastPublish = now;
+    int sensorValue = analogRead(sensorPin);
+    char payload[8];
+    itoa(sensorValue, payload, 10);
+    client.publish("e21/lesson8/sensor", payload);
+  }
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9b : ACTIVITY 3 DETAIL -->
+  <section class="slide">
+    <div class="slide-inner">
+      <span class="badge">Activity 3 of 3</span>
+      <h2>Put it together: publish + subscribe</h2>
+      <p class="lede">This is the pattern real devices actually run: one connection, publishing on one topic and subscribed to another, at the same time.</p>
+      <div class="note"><b>The one change from delay() to millis():</b> Activity 1 used <code style="font-size:13px;">delay(2000)</code> between publishes because nothing else was happening. Here, a 2-second <code style="font-size:13px;">delay()</code> would freeze <code style="font-size:13px;">client.loop()</code> for 2 full seconds — the LED would lag behind incoming messages. <code style="font-size:13px;">lastPublish</code> / <code style="font-size:13px;">millis()</code> checks the clock without ever blocking, so subscribed messages still arrive instantly.</div>
+      <div class="result"><b>Expected result:</b> the LED responds to ON/OFF messages the instant you send them, while the sensor reading keeps publishing every 2 seconds in the background — neither task waits on the other.</div>
+      <div class="todo"><b>Students:</b> watch the Serial Monitor and the web MQTT client side by side — publish an LED command mid-way through a sensor delay and confirm it reacts immediately, not after the next 2-second tick.</div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide">
+    <div class="slide-inner">
+      <div class="eyebrow">Part 3 · Testing</div>
+      <h2>Talking to your ESP32-S3 without writing a second sketch</h2>
+      <p class="lede">You don't need a second device to test either direction — a free web MQTT client plays the role of "the rest of the world."</p>
+      <ol class="steps">
+        <li><b>Open HiveMQ's free web MQTT client.</b><span class="why">No install, no account — it's a browser-based publish/subscribe tool.</span></li>
+        <li><b>Connect it to broker.hivemq.com, port 8884 (WebSocket).</b><span class="why">The web client needs the WebSocket port, not 1883 — your ESP32-S3 keeps using 1883, that part doesn't change.</span></li>
+        <li><b>Subscribe to <span class="pins">e21/lesson8/sensor</span> to watch your device publish.</b></li>
+        <li><b>Publish "ON" or "OFF" to <span class="pins">e21/lesson8/led</span> to control your device.</b></li>
+      </ol>
+      <div class="note">Everyone in class using the same public broker and similar topic names? Add your name to the topic — e.g. <span class="pins">e21/lesson8/luqman/sensor</span> — so you're not all reading each other's messages.</div>
+    </div>
+  </section>
+
+  <!-- 11 : CHALLENGE -->
+  <section class="slide">
+    <div class="slide-inner">
+      <div class="eyebrow">Challenge</div>
+      <h2>Push it further</h2>
+      <p class="lede">Pick one or more. Build on top of Activity 3's code — don't start over.</p>
+      <div class="grid cols-3">
+        <div class="card"><h3>JSON payload</h3><p>Instead of a bare number, publish <code style="font-size:13px;">{"light":1234,"led":1}</code> as one message — one topic carrying several values at once, the way real devices usually do it.</p></div>
+        <div class="card"><h3>Last Will &amp; Testament</h3><p>Use <code style="font-size:13px;">client.connect()</code>'s LWT overload so the broker auto-publishes "offline" to a status topic if your device disconnects unexpectedly.</p></div>
+        <div class="card"><h3>Secure &amp; private</h3><p>Move to a private broker (e.g. a free HiveMQ Cloud instance) on port 8883 with TLS and a username/password — the production-ready version of what you built today.</p></div>
+      </div>
+      <div class="note">Working with a different sensor this semester instead of an LDR or potentiometer? Swap <code style="font-size:13px;">sensorPin</code> and the reading logic — everything else in the sketch stays the same.</div>
+    </div>
+  </section>
+
+</div>
+
+<div class="footer-bar">
+  <div class="nav-controls">
+    <button class="nav-btn" id="prevBtn" onclick="go(-1)" aria-label="Previous slide">‹</button>
+    <span class="counter"><span id="curNum">1</span> / <span id="totalNum"></span></span>
+    <button class="nav-btn" id="nextBtn" onclick="go(1)" aria-label="Next slide">›</button>
+  </div>
+  <div class="progress" id="progress"></div>
+  <div class="slide-label" id="slideLabel"></div>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length;
+  let idx = 0;
+
+  const progressEl = document.getElementById('progress');
+  slides.forEach((_, i) => {
+    const t = document.createElement('div');
+    t.className = 'tick';
+    progressEl.appendChild(t);
+  });
+  const ticks = Array.from(progressEl.children);
+
+  document.getElementById('totalNum').textContent = total;
+
+  function render(){
+    slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+    document.getElementById('curNum').textContent = idx + 1;
+    ticks.forEach((t, i) => {
+      t.classList.toggle('current', i === idx);
+      t.classList.toggle('done', i < idx);
+    });
+    document.getElementById('prevBtn').disabled = idx === 0;
+    document.getElementById('nextBtn').disabled = idx === total - 1;
+    const h = slides[idx].querySelector('h1, h2');
+    document.getElementById('slideLabel').textContent = h ? h.textContent : '';
+    slides[idx].scrollTop = 0;
+  }
+
+  function go(delta){
+    const next = idx + delta;
+    if(next < 0 || next >= total) return;
+    idx = next;
+    render();
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if(e.key === 'ArrowRight' || e.key === ' ') { go(1); }
+    if(e.key === 'ArrowLeft') { go(-1); }
+  });
+
+  render();
+</script>
+
+</body>
+</html>
